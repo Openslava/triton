@@ -115,7 +115,7 @@ private:
           emitBaseIndexForLayout(loc, rewriter, blockedLayout, type, false);
       SmallVector<Value> multiDimOffset(rank);
       SmallVector<unsigned> multiDimElemId = getMultiDimIndex<unsigned>(
-          elemId, getSizePerThread(layout), getOrder(layout));
+          elemId, getSizePerThread(layout, {}), getOrder(layout));
       for (unsigned d = 0; d < rank; ++d) {
         multiDimOffset[d] =
             add(multiDimOffsetFirstElem[d],
@@ -127,7 +127,8 @@ private:
     if (auto sliceLayout = layout.dyn_cast<SliceEncodingAttr>()) {
       unsigned dim = sliceLayout.getDim();
       auto parentEncoding = sliceLayout.getParent();
-      auto parentSizePerThread = getSizePerThread(parentEncoding);
+      // [benzh] how about slice of mma
+      auto parentSizePerThread = getSizePerThread(parentEncoding, {});
       auto parentShape = sliceLayout.paddedShape(shape);
       auto parentTy = RankedTensorType::get(parentShape, type.getElementType(),
                                             parentEncoding);
@@ -248,7 +249,7 @@ private:
     auto accumNumCTAsEachRep = product<unsigned>(numCTAsEachRep);
     auto layout = type.getEncoding();
     auto rank = type.getRank();
-    auto sizePerThread = getSizePerThread(layout);
+    auto sizePerThread = getSizePerThread(layout, {});
     auto accumSizePerThread = product<unsigned>(sizePerThread);
     SmallVector<unsigned> numCTATiles(rank);
     auto shapePerCTA = getShapePerCTA(layout, type.getShape());

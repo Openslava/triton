@@ -175,7 +175,7 @@ getWarpsPerCTAWithUniqueData(Attribute layout, ArrayRef<int64_t> tensorShape) {
          "layout and tensor shape must have the same rank");
   for (unsigned i = 0; i < warpsPerCTA.size(); i++) {
     auto sizePerWarp =
-        getSizePerThread(layout)[i] * getThreadsPerWarp(layout)[i];
+        getSizePerThread(layout, {})[i] * getThreadsPerWarp(layout)[i];
     auto maxWarpsPerDim = ceil<unsigned>(tensorShape[i], sizePerWarp);
     warpsPerCTA[i] = std::min<unsigned>(warpsPerCTA[i], maxWarpsPerDim);
   }
@@ -183,12 +183,14 @@ getWarpsPerCTAWithUniqueData(Attribute layout, ArrayRef<int64_t> tensorShape) {
   return warpsPerCTA;
 }
 
-SmallVector<unsigned> getSizePerThread(Attribute layout) {
+SmallVector<unsigned> getSizePerThread(Attribute layout,
+                                       ArrayRef<int64_t> shapePerCTA) {
   if (auto blockedLayout = layout.dyn_cast<BlockedEncodingAttr>()) {
     return SmallVector<unsigned>(blockedLayout.getSizePerThread().begin(),
                                  blockedLayout.getSizePerThread().end());
   } else if (auto sliceLayout = layout.dyn_cast<SliceEncodingAttr>()) {
-    auto sizePerThread = getSizePerThread(sliceLayout.getParent());
+    // [benzh] should here provide parent shape???
+    auto sizePerThread = getSizePerThread(sliceLayout.getParent(), {});
     sizePerThread.erase(sizePerThread.begin() + sliceLayout.getDim());
     return sizePerThread;
   } else if (auto mmaLayout = layout.dyn_cast<MmaEncodingAttr>()) {
@@ -237,7 +239,7 @@ SmallVector<unsigned> getContigPerThread(Attribute layout) {
     auto parentLayout = sliceLayout.getParent();
     return getContigPerThread(parentLayout);
   } else {
-    return getSizePerThread(layout);
+    return getSizePerThread(layout, {});
   }
 }
 
@@ -935,7 +937,7 @@ unsigned DotOperandEncodingAttr::getTotalElemsPerThread(ArrayRef<int64_t> shape,
   if (auto blockedLayout = getParent().dyn_cast<BlockedEncodingAttr>()) {
     auto shapePerCTATile = getShapePerCTATile(blockedLayout, {});
     auto order = blockedLayout.getOrder();
-    auto sizePerThread = getSizePerThread(blockedLayout);
+    auto sizePerThread = getSizePerThread(blockedLayout, {});
 
     int K = getOpIdx() == 0 ? shape[1] : shape[0];
     int otherDim = getOpIdx() == 1 ? shape[1] : shape[0];

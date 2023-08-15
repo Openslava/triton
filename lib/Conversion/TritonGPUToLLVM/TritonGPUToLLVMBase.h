@@ -545,7 +545,7 @@ public:
       auto layout = tensorTy.getEncoding();
       auto shape = tensorTy.getShape();
       unsigned rank = shape.size();
-      auto sizePerThread = triton::gpu::getSizePerThread(layout);
+      auto sizePerThread = triton::gpu::getSizePerThread(layout, {});
       auto threadsPerWarp = triton::gpu::getThreadsPerWarp(layout);
       auto warpsPerCTA = triton::gpu::getWarpsPerCTA(layout);
       auto order = triton::gpu::getOrder(layout);

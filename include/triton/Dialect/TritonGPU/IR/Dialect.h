@@ -36,7 +36,8 @@ SmallVector<unsigned> getThreadsPerWarp(Attribute layout);
 // elements. If you want non-replicated warps, use getWarpsPerCTAWithUniqueData.
 SmallVector<unsigned> getWarpsPerCTA(Attribute layout);
 
-SmallVector<unsigned> getSizePerThread(Attribute layout);
+SmallVector<unsigned> getSizePerThread(Attribute layout,
+                                       ArrayRef<int64_t> shapePerCTA);
 
 // Returns the number of contiguous elements that each thread
 // has access to, on each dimension of the tensor. E.g.
@@ -90,7 +91,7 @@ SmallVector<unsigned> getCTAOrder(Attribute layout);
  *     be replicated or wraped to fit ShapePerCTA.
  */
 SmallVector<unsigned> getShapePerCTATile(Attribute layout,
-                                         ArrayRef<int64_t> tensorShape);
+                                         ArrayRef<int64_t> shapePerCTA);
 
 SmallVector<int64_t> getShapePerCTA(ArrayRef<unsigned> CTASplitNum,
                                     ArrayRef<int64_t> shape);

@@ -107,7 +107,7 @@ private:
     }
 
     writeIdx = index;
-    auto sizePerThread = triton::gpu::getSizePerThread(layout);
+    auto sizePerThread = triton::gpu::getSizePerThread(layout, {});
     Value axisSizePerThread = ints[sizePerThread[axis]];
     Value _8 = ints[8];
     Value _16 = ints[16];
@@ -153,7 +153,7 @@ private:
     }
     // The order of the axes for the the threads within the warp
     auto srcOrd = triton::gpu::getOrder(srcLayout);
-    auto sizePerThread = triton::gpu::getSizePerThread(srcLayout);
+    auto sizePerThread = triton::gpu::getSizePerThread(srcLayout, {});
     auto srcShape = helper.getSrcShape();
 
     SmallVector<Type> elemPtrTys(srcTys.size());

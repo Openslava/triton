@@ -71,6 +71,7 @@ public:
   explicit ScanLoweringHelper(triton::ScanOp op) : scanOp(op) {
     auto type = scanOp.getOperand(0).getType().cast<RankedTensorType>();
     srcEncoding = type.getEncoding();
+    srcShapePerCTA = triton::gpu::getShapePerCTA(type);
   }
   // Return true if the lowering of the scan op is supported.
   bool isSupported();
@@ -108,6 +109,7 @@ public:
 private:
   triton::ScanOp scanOp;
   Attribute srcEncoding;
+  ArrayRef<int64_t> srcShapePerCTA;
 };
 
 bool maybeSharedAllocationOp(Operation *op);

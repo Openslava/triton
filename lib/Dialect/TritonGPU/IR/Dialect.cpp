@@ -308,7 +308,7 @@ SmallVector<unsigned> getShapePerCTATile(Attribute layout,
               static_cast<unsigned>(tensorShape[1])};
     }
     if (mmaLayout.isHopper()) {
-      auto instrShape = mmaLayout.getInstrShape();
+      auto instrShape = mmaVersionToInstrShape(mmaLayout, tensorShape);
       return {16 * mmaLayout.getWarpsPerCTA()[0],
               instrShape[1] * mmaLayout.getWarpsPerCTA()[1]};
     }
@@ -933,7 +933,7 @@ unsigned DotOperandEncodingAttr::getTotalElemsPerThread(ArrayRef<int64_t> shape,
     }
   }
   if (auto blockedLayout = getParent().dyn_cast<BlockedEncodingAttr>()) {
-    auto shapePerCTATile = getShapePerCTATile(blockedLayout);
+    auto shapePerCTATile = getShapePerCTATile(blockedLayout, {});
     auto order = blockedLayout.getOrder();
     auto sizePerThread = getSizePerThread(blockedLayout);
 

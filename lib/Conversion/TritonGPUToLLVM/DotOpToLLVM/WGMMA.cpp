@@ -286,7 +286,7 @@ LogicalResult convertDot(TritonGPUToLLVMTypeConverter *typeConverter,
   int N = instrShape[1];
   int K = instrShape[2];
 
-  auto shapePerCTATile = getShapePerCTATile(mmaEncoding);
+  auto shapePerCTATile = getShapePerCTATile(mmaEncoding, dShapePerCTA);
   int numRepM = ceil<unsigned>(dShapePerCTA[0], shapePerCTATile[0]);
   int numRepN = ceil<unsigned>(dShapePerCTA[1], shapePerCTATile[1]);
   int numRepK = ceil<unsigned>(aTensorTy.getShape()[1], instrShape[2]);
@@ -364,7 +364,7 @@ Value loadC(Value tensor, Value llTensor) {
   auto shapePerCTA = getShapePerCTA(tensorTy);
   auto instrShape = mmaVersionToInstrShape(mmaEncoding, shapePerCTA);
   auto wpt = mmaEncoding.getWarpsPerCTA();
-  auto shapePerCTATile = getShapePerCTATile(mmaEncoding);
+  auto shapePerCTATile = getShapePerCTATile(mmaEncoding, shapePerCTA);
 
   int numRepM = ceil<unsigned>(shapePerCTA[0], shapePerCTATile[0]);
   int numRepN = ceil<unsigned>(shapePerCTA[1], shapePerCTATile[1]);

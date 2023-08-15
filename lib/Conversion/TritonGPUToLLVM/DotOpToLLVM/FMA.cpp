@@ -54,7 +54,7 @@ LogicalResult convertFMADot(triton::DotOp op, triton::DotOp::Adaptor adaptor,
   Value llB = adaptor.getB();
 
   auto sizePerThread = getSizePerThread(dLayout);
-  auto shapePerCTATile = getShapePerCTATile(dLayout);
+  auto shapePerCTATile = getShapePerCTATile(dLayout, {});
 
   int K = aShapePerCTA[1];
   int M = aShapePerCTA[0];

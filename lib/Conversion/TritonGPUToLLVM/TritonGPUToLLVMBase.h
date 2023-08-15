@@ -815,8 +815,8 @@ private:
     auto threadsPerWarp = blockedLayout.getThreadsPerWarp();
     auto warpsPerCTA = blockedLayout.getWarpsPerCTA();
     auto order = blockedLayout.getOrder();
-    auto shapePerCTATile = getShapePerCTATile(blockedLayout);
     auto shapePerCTA = triton::gpu::getShapePerCTA(blockedLayout, shape);
+    auto shapePerCTATile = getShapePerCTATile(blockedLayout, shapePerCTA);
 
     unsigned rank = shape.size();
     SmallVector<unsigned> tilesPerDim(rank);
@@ -994,9 +994,9 @@ private:
     SmallVector<SmallVector<unsigned>> ret;
 
     for (unsigned i = 0; i < shapePerCTA[0];
-         i += getShapePerCTATile(mmaLayout)[0]) {
+         i += getShapePerCTATile(mmaLayout, shapePerCTA)[0]) {
       for (unsigned j = 0; j < shapePerCTA[1];
-           j += getShapePerCTATile(mmaLayout)[1]) {
+           j += getShapePerCTATile(mmaLayout, shapePerCTA)[1]) {
         ret.push_back({i, j});
         ret.push_back({i, j + 1});
         ret.push_back({i + 8, j});
@@ -1073,9 +1073,9 @@ private:
         mmaVersionToInstrShape(mmaLayout, shapePerCTA);
 
     for (unsigned i = 0; i < shapePerCTA[0];
-         i += getShapePerCTATile(mmaLayout)[0]) {
+         i += getShapePerCTATile(mmaLayout, shapePerCTA)[0]) {
       for (unsigned j = 0; j < shapePerCTA[1];
-           j += getShapePerCTATile(mmaLayout)[1]) {
+           j += getShapePerCTATile(mmaLayout, shapePerCTA)[1]) {
         for (unsigned k = 0; k < instrShape[1]; k += 8) {
           ret.push_back({i, j + k});
           ret.push_back({i, j + k + 1});

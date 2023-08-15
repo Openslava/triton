@@ -251,8 +251,8 @@ private:
     auto sizePerThread = getSizePerThread(layout);
     auto accumSizePerThread = product<unsigned>(sizePerThread);
     SmallVector<unsigned> numCTATiles(rank);
-    auto shapePerCTATile = getShapePerCTATile(layout);
     auto shapePerCTA = getShapePerCTA(layout, type.getShape());
+    auto shapePerCTATile = getShapePerCTATile(layout, shapePerCTA);
     auto order = getOrder(layout);
     for (unsigned d = 0; d < rank; ++d) {
       numCTATiles[d] = ceil<unsigned>(shapePerCTA[d], shapePerCTATile[d]);
@@ -344,8 +344,9 @@ private:
 
     SmallVector<unsigned> numCTAs(rank, 1);
     SmallVector<unsigned> numCTAsEachRep(rank, 1);
-    SmallVector<unsigned> shapePerCTATile = getShapePerCTATile(layout, shape);
     SmallVector<int64_t> shapePerCTA = getShapePerCTA(layout, shape);
+    SmallVector<unsigned> shapePerCTATile =
+        getShapePerCTATile(layout, shapePerCTA);
     auto elemTy = type.getElementType();
 
     int ctaId = 0;
@@ -535,6 +536,7 @@ private:
     SmallVector<unsigned> outNumCTAsEachRep(rank);
     SmallVector<unsigned> inNumCTAs(rank);
     SmallVector<unsigned> outNumCTAs(rank);
+    // [benzh] here logic need more check
     auto srcShapePerCTATile = getShapePerCTATile(srcLayout, srcTy.getShape());
     auto dstShapePerCTATile = getShapePerCTATile(dstLayout, shape);
     auto shapePerCTA = getShapePerCTA(srcLayout, shape);
@@ -759,7 +761,7 @@ private:
       auto ptrI8SharedTy = LLVM::LLVMPointerType::get(
           typeConverter->convertType(rewriter.getI8Type()), 3);
 
-      uint32_t rowsPerRep = getShapePerCTATile(mmaLayout)[0];
+      uint32_t rowsPerRep = getShapePerCTATile(mmaLayout, srcShapePerCTA)[0];
 
       Value threadId = getThreadId(rewriter, loc);
       Value warpId = udiv(threadId, i32_val(32));

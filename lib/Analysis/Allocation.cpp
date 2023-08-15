@@ -88,8 +88,8 @@ getScratchConfigForCvtLayout(triton::gpu::ConvertLayoutOp op, unsigned &inVec,
 
   auto srcShapePerCTA = getShapePerCTA(srcTy);
   auto dstShapePerCTA = getShapePerCTA(dstTy);
-  auto srcShapePerCTATile = getShapePerCTATile(srcLayout, srcTy.getShape());
-  auto dstShapePerCTATile = getShapePerCTATile(dstLayout, dstTy.getShape());
+  auto srcShapePerCTATile = getShapePerCTATile(srcLayout, srcShapePerCTA);
+  auto dstShapePerCTATile = getShapePerCTATile(dstLayout, dstShapePerCTA);
 
   unsigned rank = dstTy.getRank();
   SmallVector<unsigned> paddedRepShape(rank);

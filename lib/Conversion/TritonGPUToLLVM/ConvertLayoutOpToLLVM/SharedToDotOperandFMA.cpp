@@ -35,7 +35,7 @@ getThreadIds(Value threadId, ArrayRef<unsigned int> shapePerCTATile,
 // Get shapePerCTATile for M or N axis.
 int getShapePerCTATileForMN(BlockedEncodingAttr layout, bool isM) {
   auto order = layout.getOrder();
-  auto shapePerCTATile = getShapePerCTATile(layout);
+  auto shapePerCTATile = getShapePerCTATile(layout, {});
 
   int mShapePerCTATile =
       order[0] == 1 ? shapePerCTATile[order[1]] : shapePerCTATile[order[0]];
@@ -110,7 +110,7 @@ Value loadAFMA(Value A, Value llA, BlockedEncodingAttr dLayout, Value thread,
   int K = aShapePerCTA[1];
   int M = aShapePerCTA[0];
 
-  auto shapePerCTATile = getShapePerCTATile(dLayout);
+  auto shapePerCTATile = getShapePerCTATile(dLayout, {});
   auto sizePerThread = getSizePerThread(dLayout);
 
   Value _0 = i32_val(0);
@@ -174,7 +174,7 @@ Value loadBFMA(Value B, Value llB, BlockedEncodingAttr dLayout, Value thread,
   int K = bShapePerCTA[0];
   int N = bShapePerCTA[1];
 
-  auto shapePerCTATile = getShapePerCTATile(dLayout);
+  auto shapePerCTATile = getShapePerCTATile(dLayout, {});
   auto sizePerThread = getSizePerThread(dLayout);
 
   Value _0 = i32_val(0);

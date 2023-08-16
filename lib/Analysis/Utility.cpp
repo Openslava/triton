@@ -663,23 +663,7 @@ static triton::MakeTensorPtrOp getMakeTensorPtrOpImpl(Operation *op, Value v) {
 }
 
 triton::MakeTensorPtrOp getMakeTensorPtrOp(Value v) {
-  using BranchOps = llvm::SetVector<std::pair<Operation *, int>>;
-  llvm::DenseMap<Block *, BranchOps> blockToCFOps;
-  auto moduleOp =
-      v.getParentBlock()->getParentOp()->getParentOfType<ModuleOp>();
-
-  moduleOp.walk([&](Operation *op) {
-    if (auto br = dyn_cast<cf::BranchOp>(op)) {
-      Block *block = br.getDest();
-      blockToCFOps[block].insert({op, -1});
-    }
-    if (auto condBr = dyn_cast<cf::CondBranchOp>(op)) {
-      Block *blockT = condBr.getTrueDest();
-      Block *blockF = condBr.getFalseDest();
-      blockToCFOps[blockT].insert({condBr, 1});
-      blockToCFOps[blockF].insert({condBr, 0});
-    }
-  });
+  BlockToCFOpsHelper helper(v);
 
   if (Operation *definingOp = v.getDefiningOp()) {
     return getMakeTensorPtrOpImpl(definingOp, v);
@@ -694,7 +678,7 @@ triton::MakeTensorPtrOp getMakeTensorPtrOp(Value v) {
       Block *block = arg.getOwner();
       Operation *op;
       int tOrF;
-      std::tie(op, tOrF) = blockToCFOps[block][0];
+      std::tie(op, tOrF) = helper.blockToCFOps[block][0];
       if (auto br = dyn_cast<cf::BranchOp>(op)) {
         return getMakeTensorPtrOp(br.getDestOperands()[argNum]);
       }
@@ -760,26 +744,11 @@ SmallVector<unsigned, 3> mmaVersionToInstrShape(int version,
                                                 StringRef inputType) {
   return {0};
 }
-SmallVector<unsigned, 3> mmaVersionToInstrShape(int version,
-                                                ArrayRef<int64_t> shape,
-                                                Type type, int opIdx) {
-  return {0};
-}
-SmallVector<unsigned, 3> mmaVersionToInstrShape(int version,
-                                                ArrayRef<int64_t> shape,
-                                                StringRef inputType,
-                                                int opIdx) {
-  return {0};
-}
+
 SmallVector<unsigned, 3>
 mmaVersionToInstrShape(triton::gpu::MmaEncodingAttr mma,
                        ArrayRef<int64_t> shape) {
   return {0};
 }
 
-SmallVector<unsigned, 3>
-mmaVersionToInstrShape(triton::gpu::MmaEncodingAttr mma,
-                       ArrayRef<int64_t> shape, int opIdx) {
-  return {0};
-}
 } // namespace mlir

@@ -161,7 +161,7 @@ DotOpMmaV3SmemLoader loadA(TritonGPUToLLVMTypeConverter *typeConverter,
   auto aSharedLayout = aTensorTy.getEncoding().dyn_cast<SharedEncodingAttr>();
   assert(aSharedLayout && "only support load dot operand from shared.");
   auto shapePerCTA = getShapePerCTA(aTensorTy);
-  auto instrShape = mmaVersionToInstrShape(mmaEncoding, shapePerCTA, 0);
+  auto instrShape = mmaVersionToInstrShape(mmaEncoding, shapePerCTA);
   auto wpt = mmaEncoding.getWarpsPerCTA();
   auto aOrd = aSharedLayout.getOrder();
   bool transA = aOrd[0] == 0;
@@ -192,7 +192,7 @@ DotOpMmaV3SmemLoader loadB(TritonGPUToLLVMTypeConverter *typeConverter,
   auto bSharedLayout = bTensorTy.getEncoding().cast<SharedEncodingAttr>();
   assert(bSharedLayout && "only support load B from shared.");
   auto shapePerCTA = triton::gpu::getShapePerCTA(bTensorTy);
-  auto instrShape = mmaVersionToInstrShape(mmaEncoding, shapePerCTA, 1);
+  auto instrShape = mmaVersionToInstrShape(mmaEncoding, shapePerCTA);
 
   auto wpt = mmaEncoding.getWarpsPerCTA();
   auto bOrd = bSharedLayout.getOrder();

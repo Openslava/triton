@@ -3,6 +3,7 @@
 
 #include "mlir/Analysis/DataFlowFramework.h"
 #include "mlir/Analysis/SliceAnalysis.h"
+#include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
 #include "triton/Dialect/Triton/IR/Dialect.h"
 #include "triton/Dialect/TritonGPU/IR/Dialect.h"
 #include <algorithm>
@@ -11,11 +12,34 @@
 
 namespace mlir {
 
+struct BlockToCFOpsHelper {
+  BlockToCFOpsHelper(Value v) {
+    auto moduleOp =
+        v.getParentBlock()->getParentOp()->getParentOfType<ModuleOp>();
+    moduleOp.walk([&](Operation *op) {
+      if (auto br = dyn_cast<cf::BranchOp>(op)) {
+        Block *block = br.getDest();
+        blockToCFOps[block].insert({op, -1});
+      }
+      if (auto condBr = dyn_cast<cf::CondBranchOp>(op)) {
+        Block *blockT = condBr.getTrueDest();
+        Block *blockF = condBr.getFalseDest();
+        blockToCFOps[blockT].insert({condBr, 1});
+        blockToCFOps[blockF].insert({condBr, 0});
+      }
+    });
+  }
+
+  using BranchOps = llvm::SetVector<std::pair<Operation *, int>>;
+  llvm::DenseMap<Block *, BranchOps> blockToCFOps;
+};
+
 class ReduceOpHelper {
 public:
   explicit ReduceOpHelper(triton::ReduceOp op)
       : op(op.getOperation()), axis(op.getAxis()) {
-    auto firstTy = op.getOperands()[0].getType().cast<RankedTensorType>();
+    srcValue = op.getOperands()[0];
+    auto firstTy = srcValue.getType().cast<RankedTensorType>();
     srcShape = firstTy.getShape();
     srcEncoding = firstTy.getEncoding();
     srcElementTypes = op.getElementTypes();
@@ -33,6 +57,7 @@ public:
   ArrayRef<int64_t> getSrcShape() { return srcShape; }
 
   Attribute getSrcLayout() { return srcEncoding; }
+  Value getSrcValue() { return srcValue; }
 
   triton::ReduceOp getOperation() { return op; }
 
@@ -60,6 +85,7 @@ public:
 
 private:
   triton::ReduceOp op;
+  Value srcValue;
   ArrayRef<int64_t> srcShape;
   Attribute srcEncoding;
   SmallVector<Type> srcElementTypes;
@@ -341,18 +367,9 @@ SmallVector<unsigned, 3> mmaVersionToInstrShape(int version,
                                                 StringRef inputType);
 SmallVector<unsigned, 3>
 mmaVersionToInstrShape(int version, ArrayRef<int64_t> shape, Type type);
-SmallVector<unsigned, 3> mmaVersionToInstrShape(int version,
-                                                ArrayRef<int64_t> shape,
-                                                Type type, int opIdx);
-SmallVector<unsigned, 3> mmaVersionToInstrShape(int version,
-                                                ArrayRef<int64_t> shape,
-                                                StringRef inputType, int opIdx);
 SmallVector<unsigned, 3>
 mmaVersionToInstrShape(triton::gpu::MmaEncodingAttr mma,
                        ArrayRef<int64_t> shape);
-SmallVector<unsigned, 3>
-mmaVersionToInstrShape(triton::gpu::MmaEncodingAttr mma,
-                       ArrayRef<int64_t> shape, int opIdx);
 
 } // namespace mlir
 

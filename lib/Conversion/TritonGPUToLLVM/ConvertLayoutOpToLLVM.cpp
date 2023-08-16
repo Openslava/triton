@@ -127,8 +127,6 @@ private:
     if (auto sliceLayout = layout.dyn_cast<SliceEncodingAttr>()) {
       unsigned dim = sliceLayout.getDim();
       auto parentEncoding = sliceLayout.getParent();
-      // [benzh] how about slice of mma
-      auto parentSizePerThread = getSizePerThread(parentEncoding, {});
       auto parentShape = sliceLayout.paddedShape(shape);
       auto parentTy = RankedTensorType::get(parentShape, type.getElementType(),
                                             parentEncoding);
@@ -249,10 +247,10 @@ private:
     auto accumNumCTAsEachRep = product<unsigned>(numCTAsEachRep);
     auto layout = type.getEncoding();
     auto rank = type.getRank();
-    auto sizePerThread = getSizePerThread(layout, {});
+    auto shapePerCTA = getShapePerCTA(layout, type.getShape());
+    auto sizePerThread = getSizePerThread(layout, shapePerCTA);
     auto accumSizePerThread = product<unsigned>(sizePerThread);
     SmallVector<unsigned> numCTATiles(rank);
-    auto shapePerCTA = getShapePerCTA(layout, type.getShape());
     auto shapePerCTATile = getShapePerCTATile(layout, shapePerCTA);
     auto order = getOrder(layout);
     for (unsigned d = 0; d < rank; ++d) {
@@ -537,7 +535,7 @@ private:
     SmallVector<unsigned> outNumCTAsEachRep(rank);
     SmallVector<unsigned> inNumCTAs(rank);
     SmallVector<unsigned> outNumCTAs(rank);
-    // [benzh] here logic need more check
+    // [benzh] here logic need more check: src and dst using same shape???
     auto srcShapePerCTATile = getShapePerCTATile(srcLayout, srcTy.getShape());
     auto dstShapePerCTATile = getShapePerCTATile(dstLayout, shape);
     auto shapePerCTA = getShapePerCTA(srcLayout, shape);

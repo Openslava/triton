@@ -87,12 +87,53 @@ private:
     return srcValues;
   }
 
+  Value getParentValueWithSameLayout(BlockToCFOpsHelper &helper, Value value,
+                                     Attribute attr) const {
+    if (Operation *defOp = value.getDefiningOp()) {
+      for (Value operand : defOp->getOperands()) {
+        if (auto type = operand.getType().cast<RankedTensorType>()) {
+          if (type.getEncoding() == attr)
+            return operand;
+        }
+      }
+      llvm_unreachable("no operand has same encoding");
+    } else if (BlockArgument arg = value.cast<BlockArgument>()) {
+      unsigned argNum = arg.getArgNumber();
+      Operation *argOwner = arg.getOwner()->getParentOp();
+      Value newValue;
+      if (auto forOp = dyn_cast<scf::ForOp>(argOwner))
+        Value newValue =
+            forOp.getOperand(argNum + forOp.getNumControlOperands() - 1);
+      else if (auto funcOp = dyn_cast<mlir::triton::FuncOp>(argOwner)) {
+        Block *block = arg.getOwner();
+        Operation *op;
+        int tOrF = 0;
+        std::tie(op, tOrF) = helper.blockToCFOps[block][0];
+        Value newValue;
+        if (auto br = dyn_cast<cf::BranchOp>(op)) {
+          newValue = br.getDestOperands()[argNum];
+        }
+        if (auto condBr = dyn_cast<cf::CondBranchOp>(op)) {
+          if (tOrF)
+            newValue = condBr.getTrueDestOperands()[argNum];
+          else
+            newValue = condBr.getFalseDestOperands()[argNum];
+        }
+      } else
+        newValue = argOwner->getOperand(argNum);
+      return getParentValueWithSameLayout(helper, value, attr);
+    }
+    llvm_unreachable("cannot find defOp and not block argument");
+    return {};
+  }
+
   // Calculates the write index in the shared memory where we would be writing
   // the within-thread accumulations before we start doing across-threads
   // accumulations. `index` is the index of the within-thread accumulations in
   // the full tensor, whereas `writeIdx` is the mapped-to index in the shared
   // memory
   void getWriteIndexBasic(ConversionPatternRewriter &rewriter, Location loc,
+                          BlockToCFOpsHelper &helper, Value value,
                           Attribute layout, SmallVector<Value> &index,
                           SmallVector<Value> &writeIdx,
                           std::map<int, Value> &ints, unsigned originalAxis,
@@ -101,13 +142,17 @@ private:
       // Recover the axis in the parent layout
       auto parentAxis = axis < sliceLayout.getDim() ? axis : axis + 1;
       auto parentLayout = sliceLayout.getParent();
-      getWriteIndexBasic(rewriter, loc, parentLayout, index, writeIdx, ints,
-                         originalAxis, parentAxis);
+      auto parentValue =
+          getParentValueWithSameLayout(helper, value, parentLayout);
+
+      getWriteIndexBasic(rewriter, loc, helper, parentValue, parentLayout,
+                         index, writeIdx, ints, originalAxis, parentAxis);
       return;
     }
 
     writeIdx = index;
-    auto sizePerThread = triton::gpu::getSizePerThread(layout, {});
+    auto sizePerThread = triton::gpu::getSizePerThread(
+        layout, triton::gpu::getShapePerCTA(value.getType()));
     Value axisSizePerThread = ints[sizePerThread[axis]];
     Value _8 = ints[8];
     Value _16 = ints[16];
@@ -153,8 +198,9 @@ private:
     }
     // The order of the axes for the the threads within the warp
     auto srcOrd = triton::gpu::getOrder(srcLayout);
-    auto sizePerThread = triton::gpu::getSizePerThread(srcLayout, {});
     auto srcShape = helper.getSrcShape();
+    auto sizePerThread = triton::gpu::getSizePerThread(
+        srcLayout, triton::gpu::getShapePerCTA(srcLayout, srcShape));
 
     SmallVector<Type> elemPtrTys(srcTys.size());
     for (unsigned i = 0; i < op.getNumOperands(); ++i) {
@@ -191,13 +237,15 @@ private:
     ints[16] = i32_val(16);
 
     // reduce across threads
+    BlockToCFOpsHelper cfHelper(helper.getSrcValue());
+
     for (auto it : accs) {
       const SmallVector<unsigned> &key = it.first;
       auto &acc = it.second;
       // get the writeIdx at which to write in smem
       SmallVector<Value> writeIdx;
-      getWriteIndexBasic(rewriter, loc, srcLayout, indices[key], writeIdx, ints,
-                         axis, axis);
+      getWriteIndexBasic(rewriter, loc, cfHelper, helper.getSrcValue(),
+                         srcLayout, indices[key], writeIdx, ints, axis, axis);
 
       // calculate the offset in smem for that writeIdx
       Value writeOffset = linearize(rewriter, loc, writeIdx, smemShape, srcOrd);

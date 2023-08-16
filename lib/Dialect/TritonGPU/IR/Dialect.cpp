@@ -190,7 +190,7 @@ SmallVector<unsigned> getSizePerThread(Attribute layout,
                                  blockedLayout.getSizePerThread().end());
   } else if (auto sliceLayout = layout.dyn_cast<SliceEncodingAttr>()) {
     // [benzh] should here provide parent shape???
-    auto sizePerThread = getSizePerThread(sliceLayout.getParent(), {});
+    auto sizePerThread = getSizePerThread(sliceLayout.getParent(), shapePerCTA);
     sizePerThread.erase(sizePerThread.begin() + sliceLayout.getDim());
     return sizePerThread;
   } else if (auto mmaLayout = layout.dyn_cast<MmaEncodingAttr>()) {
@@ -199,7 +199,7 @@ SmallVector<unsigned> getSizePerThread(Attribute layout,
     } else if (mmaLayout.isVolta()) {
       return {1, 2};
     } else if (mmaLayout.isHopper()) {
-      auto instrShape = mmaLayout.getInstrShape();
+      auto instrShape = mmaVersionToInstrShape(mmaLayout, shapePerCTA);
       // TODO(thomas): what are those magic numbers?
       return SmallVector<unsigned>{instrShape[0] * 4 / 32, instrShape[1] / 4};
     } else {
@@ -803,8 +803,8 @@ MmaEncodingAttr::getElemsPerThreadOfOperand(int opIdx,
         "getElemsPerThreadOfOperand() not supported for version 2");
   } else if (isHopper()) {
     auto wpt = getWarpsPerCTA();
-    auto instrMNK = mmaVersionToInstrShape(getVersionMajor(), shapePerCTA,
-                                           getInputType(), opIdx);
+    auto instrMNK =
+        mmaVersionToInstrShape(getVersionMajor(), shapePerCTA, getInputType());
     if (opIdx == 0) {
       int repM = ceil<unsigned>(shapePerCTA[0], instrMNK[0] * wpt[0]);
       int repK = ceil<unsigned>(shapePerCTA[1], instrMNK[2]);
@@ -1098,7 +1098,7 @@ Attribute MmaEncodingAttr::parse(AsmParser &parser, Type type) {
 
   return parser.getChecked<MmaEncodingAttr>(parser.getContext(), versionMajor,
                                             versionMinor, warpsPerCTA,
-                                            CTALayout, inputType, instrShape);
+                                            CTALayout, inputType);
 }
 
 void MmaEncodingAttr::print(AsmPrinter &printer) const {
